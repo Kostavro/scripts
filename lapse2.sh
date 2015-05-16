@@ -2,6 +2,7 @@
 
 # Take pictures with raspberry pi camera for timelapse creation
 # NOTE: created for personal use, however you may alter it as you please
+# Run as SU
 
 # mount disk
 flag=true
@@ -85,7 +86,7 @@ fi
 done
 
 # take images, no preview, x&y inverted, resolution, period, interval, 4 digits name, saved as jpg
-raspistill -bm -hf -vf -w $ww -h $hh -t $period -tl $interval -o /media/Tough/lapse/image%04d.jpg
+raspistill -bm -hf -vf -w $ww -h $hh -t $period -tl $interval -o /media/Tough/lapse/image%04d.jpg &
 
 if [[ $choice2 == "y" || $choice2 == "Y" ]]
 then
