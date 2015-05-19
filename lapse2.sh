@@ -23,8 +23,8 @@ else
 fi
 done
 
-sudo chmod 775 /media/Tough
-sudo chmod 775 /media/Tough/lapse
+chmod 775 /media/Tough
+chmod 775 /media/Tough/lapse
 
 # unmount disk
 while ! $flag; do
