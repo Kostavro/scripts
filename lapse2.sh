@@ -26,19 +26,8 @@ done
 chmod 775 /media/Tough
 chmod 775 /media/Tough/lapse
 
-# unmount disk
-while ! $flag; do
-read -p "automatically unmount when finished? [y/n]: " choice2
-if [[ $choice2 == "y" || $choice2 == "Y" || $choice2 == "n" || $choice2 == "N" ]]
-then
-	flag=true
-else
-	echo "choose wisely"
-fi
-done
-
 # resolution
-while $flag; do
+while ! $flag; do
 echo -e "choose frame resolution:\n1.720p\n2.1080p\n3.2K"
 read res
 if [ $res == "1" ]
@@ -63,11 +52,10 @@ done
 
 # time period
 while ! $flag; do
-read -p "enter hours [e.g. 1, 2, 24]: " period
+read -p "enter minutes [reminder: 5 hours = 300 minutes]: " period
 if [[ $period =~ [0-9] ]]
 then
-	period=$[period*3600000]
-	echo $period
+	period=$[period*60000]
 	flag=true
 else
 	echo "choose wisely"
@@ -88,7 +76,3 @@ done
 # take images, no preview, x&y inverted, resolution, period, interval, 4 digits name, saved as jpg
 raspistill -bm -hf -vf -w $ww -h $hh -t $period -tl $interval -o /media/Tough/lapse/image%04d.jpg &
 
-if [[ $choice2 == "y" || $choice2 == "Y" ]]
-then
-	umount /dev/sda1
-fi
