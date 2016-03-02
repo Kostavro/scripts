@@ -15,9 +15,6 @@ find . -type f -name '*S[0-9]{1,2}E[0-9]{1,2}*' | while read line; do
         fi
 done
 
-
-## TO-DO learn how to OR :P
-
 find . -type f -name '*.mp4' | while read line; do
         title=$line;
         mv "$title" ../MOVIES/
@@ -37,4 +34,16 @@ find . -type f -name '*.mkv' | while read line; do
         title=$line;
         mv "$title" ../MOVIES/
 done
+
+find . -type f -name '*.txt' | while read line; do
+        title=$line;
+        rm -f "$title"
+done
+
+find . -type f -name '*.nfo' | while read line; do
+        title=$line;
+        rm -f "$title"
+done
+
+find . -type d -empty -delete
 
