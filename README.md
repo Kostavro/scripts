@@ -9,3 +9,5 @@ Scriptease
 > torrentsort: torrent sorting in folders
 
 > combinestarlapse: should create star timelapse effect (haven't used in a while)
+
+> brightness: used to enable functions of brightness shortcuts
