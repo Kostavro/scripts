@@ -1,7 +1,7 @@
 # Current problems:
 # 	1. directory matching gives false results
 # Suggested solutions:
-#	1. wrap in functions, so that you can fully explore directories
+#	1. maybe wrap in functions, so that you can fully explore directories
 
 import os, glob, re, shutil, difflib, fnmatch
 
