@@ -73,7 +73,7 @@ def iffile(downloadedfile):
 		if regexmatch or fnmatch.fnmatch(downloadedfile, '*episode*') or fnmatch.fnmatch(downloadedfile, '*Episode*'):
 			# a) if similarly named directory exists then move the series file there
 			for sdir in directories:
-				if difflib.SequenceMatcher(None,downloadedfile, sdir).ratio() > 0.25:
+				if difflib.SequenceMatcher(None,os.path.basename(downloadedfile), sdir).ratio() > 0.25:
 					dest = "../"+sdir
 					shutil.copy(downloadedfile, dest)
 					printmovemessage(downloadedfile, sdir+" (because similar dirs)")
