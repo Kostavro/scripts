@@ -1,121 +1,172 @@
-# Current problems:
-# 	1. still getting some bad matching from difflib, but getting closer now
-# Suggested solutions:
-#	1. when moving files from ifdir function maybe call iffile function instead
+#!/usr/bin/python3.5
 
-import os, glob, re, shutil, difflib, fnmatch
+import os, glob, re, shutil, difflib, subprocess, sys
 
-# list sibling directories
-directories = []
-for sdir in os.listdir(".."):
-	if os.path.isdir(os.path.join("..",sdir)):
-		directories.append(sdir)
+# change these paths if you want
+TVSeriespath = "/media/Tough/TVSeries/"
+MOVIESpath = "/media/Tough/MOVIES/"
+UnsortedSeriespath = "/media/Tough/UnsortedSeries/"
+Unsortedpath = "/media/Tough/Unsorted/"
+Trashpath = "/media/Tough/Trash/"
+
+logfile = open("torrentsort.log", "a+")
+
+# create a list with "sibling directories"
+siblingdirectories = []
+for dir in os.listdir(TVSeriespath):
+	if os.path.isdir(os.path.join("../TVSeries/",dir)):
+		siblingdirectories.append(dir)
 
 # file extensions of interest
 fileext = (".mp4",".avi",".srt",".mkv")
 
+#file extensions that are going to be deleted
+fileextdel = (".jpg",".nfo",".txt",".png")
+
 # simple method to show what's being moved
-def printmovemessage(filename, foldername):
-	print ("moved ", filename, " to ", foldername)
+def printmovemessage(filename, ftype, foldername):
+	logmessage = "Moving\t" + ftype + "\t" + filename + "\tto\t" + foldername + "\n"
+	print(logmessage)
+	logfile.write(logmessage)
 
-downloads = []
-# search this directory for files and directories
-for downloadedfile in glob.glob('./**/*', recursive=True):
-	downloads.append(downloadedfile)
-
-# removing samples
-def ifsample(downloadedfile):
-	if os.path.isfile(downloadedfile):
-		printmovemessage(downloadedfile, "deleted samples")
-		os.remove(downloadedfile)
-	elif os.path.isdir(downloadedfile):
-		printmovemessage(downloadedfile, "deleted samples")
-		shutil.rmtree(downloadedfile)
-
-### MAIN ###
-def ifdir(downloadeddir):
-	# 1) remove sample directories
-	if fnmatch.fnmatch(downloadeddir,'*sample*'):
-		ifsample(downloadeddir)
-	else:
-		for sdir in directories:
-			# match with siblings and pick series directories (because they may contain non recognizable files)
-			if difflib.SequenceMatcher(None,downloadeddir, sdir).ratio() > 0.25:
-				for subfile in os.listdir(downloadeddir):
-					sourcef = downloadeddir+"/"+subfile
-					# only grab files of interest and delete the rest
-					if subfile.endswith(tuple(fileext)):
-						# move these files to this directory for easier sorting
-						destd = "./"
-						shutil.copy(sourcef, destd)
-						printmovemessage(sourcef, destd)
-						os.remove(sourcef)
-					else:
-						if os.path.isfile(subfile):
-							printmovemessage("file "+sourcef, "null")
-							os.remove(sourcef)
-						elif os.path.isdir(subfile):
-							printmovemessage("tree "+sourcef, "null")
-							shutil.rmtree(subfile)
-				break	
-	
-def iffile(downloadedfile):
-	similardiryes = False #boolean var for 3)
-	# 1) remove sample files
-	if fnmatch.fnmatch(downloadedfile,'*sample*'):
-		ifsample(downloadedfile)
-	# 2) skip scripts
-	elif downloadedfile.endswith(".py") or downloadedfile.endswith(".sh"):
-		print ("jumped over snake pit successfully")
-	elif downloadedfile.endswith(tuple(fileext)):
-		# i) pick series files
-		regexmatch = re.search(r'[sS][0-9]{1,2}[eE][0-9]{1,2}.{1,}',downloadedfile)
-		if regexmatch or fnmatch.fnmatch(downloadedfile, '*episode*') or fnmatch.fnmatch(downloadedfile, '*Episode*'):
-			# a) if similarly named directory exists then move the series file there
-			for sdir in directories:
-				if difflib.SequenceMatcher(None,os.path.basename(downloadedfile), sdir).ratio() > 0.25:
-					dest = "../"+sdir
-					shutil.copy(downloadedfile, dest)
-					printmovemessage(downloadedfile, sdir+" (because similar dirs)")
-					os.remove(downloadedfile)
-					similardiryes = True
-					break
-			# b) if similarly named directory doesn't exist move the series file to the Unsorted directory
-			if not similardiryes:
-				dest = "/home/kostas/Templates/Unsorted"
-				shutil.copy(downloadedfile, dest)
-				printmovemessage(downloadedfile, "Unsorted - sort it out later!")
-				os.remove(downloadedfile)
-		# ii) logically, the remaining files are movie related and moved to the MOVIES directory
+# method to determine if a file/folder is a series file/folder
+def isitseries(filename):
+	# search the filename for substring like S**E** (e.g. S01E01 - meaning Series01Episode01)
+	regexmatch = re.search(r'[sS][0-9]{1,2}[eE][0-9]{1,2}.{1,}',filename)
+	# remove the S**E** from the filename for better matching using the difflib library
+	filenameminusseries = re.sub(r'[sS][0-9]{1,2}[eE][0-9]{1,2}.{1,}','',filename)
+	best_match = difflib.get_close_matches(filenameminusseries,siblingdirectories,1,0.6)
+	print ('Best match is directory: ',best_match)
+	for sdir in siblingdirectories:
+		if best_match and regexmatch:
+			itseries = 'yes'
+			matched_dir = best_match[0]
+		elif not best_match and regexmatch:
+			itseries = 'regexmatched'
+			matched_dir = 'UnsortedSeries'
+		elif best_match and not regexmatch:
+			itseries = 'diffmatched'
+			matched_dir = 'Unsorted'
+		elif not best_match and not regexmatch:
+			itseries = 'no'
+			matched_dir = 'MOVIES'
 		else:
-			destm = '/home/kostas/Templates/MOVIES'
-			shutil.copy(downloadedfile, destm)
-			printmovemessage(downloadedfile, "MOVIES - hope it's a good one!")
+			itseries = 'no'
+			matched_dir = 'MOVIES'
+	return itseries, matched_dir
+
+# method to determine if a file is a sample file
+def isitsample(filename):
+	samplematch = re.search(r'[sS][aA][mM][pP][lL][eE].{1,}',filename)
+	if samplematch:
+		itssample = 'yes'
+	else:
+		itssample = 'no'
+	return itssample
+
+# method to determine what to do with a file of interest
+def whatdowithfile(filename):
+	slashes = filename.count('/')
+	if slashes == 1:
+		filename1, filenameE = filename.split('/')
+	elif slashes == 2:
+		filename1, filename2, filenameE = filename.split('/')
+	elif slashes == 3:
+		filename1, filename2, filename3, filenameE = filename.split('/')
+	elif slashes == 4:
+		filename1, filename2, filename3, filename4, filenameE = filename.split('/')
+	else:
+		filenameE = filename
+		print ('this file has too many slashes, it won\'t match well')
+	# remove weird characters and strings that we do not want for better matching
+	removechars = ['.','_','WEB-DL','-','[',']',' ','720p','1080p','(',')','eason','pisode','x264','AC3','XviDVD','x265','BRRip','HDRip','WEBRip','DVD','Complete','BluRay','ReEnc','DeeJayAhmed','ShAaNiG','Subs','Torrent','.com']
+	for ch in removechars:
+		filenameE = filenameE.replace(ch,'')
+	print ('The string has been cleaned to: ',filenameE)
+	# call the isitseries function
+	(seriesbool, seriesdir) = isitseries(filenameE)
+	# is this file a series file?
+	if seriesbool == 'yes':
+		dest = TVSeriespath+seriesdir
+		printmovemessage(filenameE, "SERIES FILE", seriesdir)
+		shutil.move(filename, dest)
+	# is this file a series file but no sibling directory exists?
+	elif seriesbool == 'regexmatched':
+		dest = UnsortedSeriespath
+		printmovemessage(filenameE, "ORPHAN SERIES FILE", "UnsortedSeries")
+		shutil.move(filename, dest)
+	# is this file a series file (probably)?
+	elif seriesbool == 'diffmatched':
+		dest = Unsortedpath
+		printmovemessage(filenameE, "PROBABLY UNSORTED SERIES FILE", "Unsorted")
+		shutil.move(filename, dest)
+	# if all above fail then we have a movie file
+	else:
+		dest = MOVIESpath
+		printmovemessage(filenameE, "MOVIES FILE", "MOVIES")
+		shutil.move(filename, dest)
+
+# search this directory for files
+for downloadedfile in glob.glob('./**/*', recursive=True):
+	print ('\n\n************************************************************')
+	print('Deciding what to do with: ',downloadedfile,'\n')
+	## start decision making here ##
+	# 1] skip all .py files and .log files
+	if downloadedfile.endswith(".py"):
+		print ("Skipped PYTHON file")
+	elif downloadedfile.endswith(".log"):
+		print ("Skipped LOG file")
+	# 2] delete "sample" clips and directories
+	elif isitsample(downloadedfile) == 'yes':
+		if os.path.isfile(downloadedfile):
+			printmovemessage(downloadedfile, "SAMPLE FILE", "null")
 			os.remove(downloadedfile)
-	# logically, everything else is unwanted and moved to the Trash directory (safety net)
-	else:
-		destt = '/home/kostas/Templates/Trash'
-		printmovemessage(downloadedfile, "Trash - empty the trash sometime eh!")
-		shutil.copy(downloadedfile, destt)
-		os.remove(downloadedfile)
-
-### END ###
-
-for downloadedfile in downloads:
-	if os.path.isdir(downloadedfile):
-		ifdir(downloadedfile)
+		elif os.path.isdir(downloadedfile):
+			printmovemessage(downloadedfile, "SAMPLE DIRECTORY", "null")
+			shutil.rmtree(downloadedfile)
+	# 3] delete files with an extension in fileextdel
+	elif downloadedfile.endswith(tuple(fileextdel)) and os.path.isfile(downloadedfile):
+	    destt = Trashpath
+	    printmovemessage(downloadedfile, "UNWANTED EXTENSION", "null")
+	    os.remove(downloadedfile)
+	    #os.remove(downloadedfile)
+	# 4] examine files with extension of interest
+	elif downloadedfile.endswith(tuple(fileext)) and os.path.isfile(downloadedfile):
+		####### CUT THE DOWNLOADEDFILE STRING AND KEEP THE LAST PART AFTER THE LAST SLASH########### (ALSO DO IT FURTHER DOWN IF NEEDED) ##### REASON: CHECK IF IT FIXES THE MATCHING FOR SERIES FILES
+		whatdowithfile(downloadedfile)
+	# 5] delete empty folders
+	elif os.path.isdir(downloadedfile) and not os.listdir(downloadedfile):
+		printmovemessage(downloadedfile, "EMPTY FOLDER", "null")
+		os.rmdir(downloadedfile)
+	# 6] examine remaining directories
+	elif os.path.isdir(downloadedfile) and os.listdir(downloadedfile):
+		for subfile in os.listdir(downloadedfile):
+			# are the subfiles empty directories?
+			if os.path.isdir(subfile) and not os.listdir(subfile):
+				printmovemessage(subfile, "EMPTY FOLDER", "null")
+				os.rmdir(subfile)
+			# are the subfiles non empty directories?
+			elif os.path.isdir(subfile) and os.listdir(subfile):
+				for subsubfile in os.listdir(subfile):
+					# are the sub-sub files files?
+					if os.path.isfile(subsubfile):
+						whatdowithfile(subsubfile)
+					# are the sub-sub files empty directories?
+					elif os.path.isdir(subfile) and not os.listdir(subfile):
+						printmovemessage(subfile, "EMPTY FOLDER", "null")
+						os.rmdir(subfile)
+					# are the sub-sub files non empty directories?
+					elif os.path.isdir(subfile) and os.listdir(subfile):
+						printmovemessage(downloadedfile, "NON EMPTY DIRECTORY", "null")
+						shutil.rmtree(downloadedfile)
+	# 7] move the remaining files to the Trash directories
 	elif os.path.isfile(downloadedfile):
-		iffile(downloadedfile)
-	else:
-		print ("wtf is this? ", downloadedfile)
-
-# remove empty directories
-for sdir in os.listdir("."):
-	if os.path.isdir(sdir) and not os.listdir(sdir):
-		try:
-			printmovemessage(sdir, "deleted directories")
-			shutil.rmtree(sdir)
-		except OSError as ex:
-			if ex.errno == errno.ENOTEMPTY:
-				print (sdir, " is not empty")
-		
+		destt = Trashpath
+		printmovemessage(downloadedfile, "REMAINING FILES", "Trash")
+		shutil.move(downloadedfile, destt)
+		#os.remove(downloadedfile)
+	print('************************************************************')
+# run the script again for deep clean
+repeat = input("Would you like to run again? (y/n) ")
+if repeat == 'y':
+    os.execv(sys.executable, ['python3.5'] + sys.argv)
