@@ -18,7 +18,7 @@ for dir in os.listdir(TVSeriespath):
 		siblingdirectories.append(dir)
 
 # file extensions of interest
-fileext = (".mp4",".avi",".srt",".mkv")
+fileext = (".mp4",".avi",".srt",".mkv","m4v")
 
 #file extensions that are going to be deleted
 fileextdel = (".jpg",".nfo",".txt",".png")
