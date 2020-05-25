@@ -79,7 +79,7 @@ def whatdowithfile(filename):
 		filenameE = filename
 		print ('this file has too many slashes, it won\'t match well')
 	# remove weird characters and strings that we do not want for better matching
-	removechars = ['.','_','WEB-DL','-','[',']',' ','720p','1080p','(',')','eason','pisode','x264','AC3','XviDVD','x265','BRRip','HDRip','WEBRip','DVD','Complete','BluRay','ReEnc','DeeJayAhmed','ShAaNiG','Subs','Torrent','.com']
+	removechars = ['.','_','WEB-DL','-','[',']',' ','720p','1080p','(',')','eason','pisode','x264','AC3','XviDVD','x265','BRRip','HDRip','WEBRip','DVD','Complete','BluRay','ReEnc','DeeJayAhmed','ShAaNiG','Subs','Torrent','.com','webrip','WEBRIP','YTS']
 	for ch in removechars:
 		filenameE = filenameE.replace(ch,'')
 	print ('The string has been cleaned to: ',filenameE)
